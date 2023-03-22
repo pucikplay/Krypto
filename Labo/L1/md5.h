@@ -3,6 +3,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
+#include <stdio.h>
+#include <stddef.h>
+#include <stdlib.h>
 
 /* POINTER defines a generic pointer type */
 typedef unsigned char *POINTER;
@@ -24,5 +27,6 @@ void MD5Transform(UINT4 [4], unsigned char [64]);
 void MD5Init(MD5_CTX *);
 void MD5Update(MD5_CTX *, unsigned char *, unsigned int);
 void MD5Final(unsigned char [16], MD5_CTX *, bool);
+POINTER MD5String(char *string, bool);
 
-#endif
+#endif //_MD5_H_

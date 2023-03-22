@@ -21,6 +21,7 @@
 
 static void Encode(unsigned char *, UINT4 *, unsigned int);
 static void Decode(UINT4 *, unsigned char *, unsigned int);
+static void MD5Print(unsigned char digest[16]);
 
 static unsigned char PADDING[64] = {
     0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -249,4 +250,25 @@ static void Decode(UINT4 *output, unsigned char *input, unsigned int len) {
     for (i = 0, j = 0; j < len; i++, j += 4)
         output[i] = ((UINT4)input[j]) | (((UINT4)input[j+1]) << 8) |
         (((UINT4)input[j+2]) << 16) | (((UINT4)input[j+3]) << 24);
+}
+
+POINTER MD5String(char *string, bool padding) {
+  MD5_CTX context;
+  POINTER digest = malloc(16);
+  unsigned int len = strlen(string);
+
+  MD5Init(&context);
+  MD5Update(&context, string, len);
+  MD5Final(digest, &context, padding);
+
+  //printf("MD5 (\"%s\") = ", string);
+  //MD5Print(digest);
+  //printf("\n");
+  return digest;
+}
+
+static void MD5Print(unsigned char digest[16]) {
+  unsigned int i;
+  for (i = 0; i < 16; i++)
+    printf ("%02x", digest[i]);
 }
