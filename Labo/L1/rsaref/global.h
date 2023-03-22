@@ -1,16 +1,16 @@
 /* GLOBAL.H - RSAREF types and constants
 
 /* Copyright (C) RSA Laboratories, a division of RSA Data Security,
-     Inc., created 1991. All rights reserved.
- */
+  Inc., created 1991. All rights reserved.
+*/
 
 #ifndef _GLOBAL_H_
 #define _GLOBAL_H_ 1
 
 /* PROTOTYPES should be set to one if and only if the compiler supports
-     function argument prototyping.
-   The following makes PROTOTYPES default to 1 if it has not already been
-     defined as 0 with C compiler flags.
+  function argument prototyping.
+  The following makes PROTOTYPES default to 1 if it has not already been
+  defined as 0 with C compiler flags.
  */
 #ifndef PROTOTYPES
 #define PROTOTYPES 1
@@ -34,8 +34,8 @@ typedef unsigned long int UINT4;
 #endif
 
 /* PROTO_LIST is defined depending on how PROTOTYPES is defined above.
-   If using PROTOTYPES, then PROTO_LIST returns the list, otherwise it
-     returns an empty list.  
+  If using PROTOTYPES, then PROTO_LIST returns the list, otherwise it 
+  returns an empty list.  
  */
 #if PROTOTYPES
 #define PROTO_LIST(list) list

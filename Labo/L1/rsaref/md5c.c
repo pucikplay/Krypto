@@ -45,7 +45,6 @@
 #define S43 15
 #define S44 21
 
-static void MD5Transform PROTO_LIST ((UINT4 [4], unsigned char [64]));
 static void Encode PROTO_LIST
   ((unsigned char *, UINT4 *, unsigned int));
 static void Decode PROTO_LIST
@@ -184,7 +183,7 @@ MD5_CTX *context;                                       /* context */
 
 /* MD5 basic transformation. Transforms state based on block.
  */
-static void MD5Transform (state, block)
+void MD5Transform (state, block)
 UINT4 state[4];
 unsigned char block[64];
 {
