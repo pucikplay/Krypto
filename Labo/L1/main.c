@@ -1,6 +1,26 @@
-#include "md5.h"
+#include "md5crack.h"
 
-bool equalHash(POINTER, POINTER);
+bool equalHash(MD5_CTX *, MD5_CTX *);
+
+//jsf32 random:
+typedef struct ranctx { UINT8 a; UINT8 b; UINT8 c; UINT8 d; } ranctx;
+#define rot64(x,k) (((x)<<(k))|((x)>>(64-(k))))
+UINT8 ranval(ranctx *x) {
+  UINT8 e = x->a - rot64(x->b, 7);
+  x->a = x->b ^ rot64(x->c, 13);
+  x->b = x->c + rot64(x->d, 37);
+  x->c = x->d + e;
+  x->d = e + x->a;
+  return x->d;
+}
+
+void raninit(ranctx *x, UINT8 seed) {
+  UINT8 i;
+  x->a = 0xf1ea5eed, x->b = x->c = x->d = seed;
+  for (i = 0; i < 20; ++i) {
+    (void)ranval(x);
+  }
+}
 
 int main(void) {
   UINT4 M_0_0[16] = {0x2dd31d1, 0xc4eee6c5, 0x69a3d69, 0x5cf9af98, 
@@ -23,25 +43,65 @@ int main(void) {
                     0x797f2775, 0xeb5cd530, 0xbaade822, 0x5c154c79,
                     0xddcb74ed, 0x6dd3c55f, 0x580a9bb1, 0xe3a7cc35};
   
-  POINTER M_0 = malloc(128);
-  POINTER M_1 = malloc(128);
+  // POINTER M_0 = malloc(128);
+  // POINTER M_1 = malloc(128);
 
-  memcpy(M_0, M_0_0, 64);
-  memcpy(&(M_0[64]), M_1_0, 64);
+  // memcpy(M_0, M_0_0, 64);
+  // memcpy(&(M_0[64]), M_1_0, 64);
 
-  memcpy(M_1, M_0_1, 64);
-  memcpy(&(M_1[64]), M_1_1, 64);
+  // memcpy(M_1, M_0_1, 64);
+  // memcpy(&(M_1[64]), M_1_1, 64);
 
-  printf("\n%d\n", equalHash(MD5String((char*)M_0, false), MD5String((char*)M_1, false)));
-  
+  size_t i = 0;
+  ranctx x;
+  UINT8 a;
+
+  raninit(&x, 1);
+
+  POINTER M = malloc(64);
+
+  for (size_t b = 0; b < 8; b++) {
+    a = ranval(&x);
+    memcpy(&(M[b*8]), &a, 8);
+  }
+
+  MD5_CTX H_0 = getCorrect();
+  MD5_CTX H_1;
+  m0Init(&H_1);
+  updateAndAlter(&H_1, M);
+
+  while(!equalHash(&H_0,&H_1)) {
+    i++;
+    if (i % 10000000 == 0) printf("%ld\n",i);
+    for (size_t b = 0; b < 8; b++) {
+      a = ranval(&x);
+      memcpy(&(M[b*8]), &a, 8);
+    }
+    updateAndAlter(&H_1,(char*)M);
+  }
+
+  for (size_t b = 0; b < 64; b++) {
+      printf("%02x", M[b]);
+    }
+    printf("\n");
+
+  for (size_t i = 0; i < 4; i++) {
+    printf("%02x", H_0.state[i]);
+  }
+  printf("\n");
+
+  for (size_t i = 0; i < 4; i++) {
+    printf("%02x", H_1.state[i]);
+  }
+  printf("\n");
+
   return 0;
 }
 
-bool equalHash(POINTER digest1, POINTER digest2) {
+bool equalHash(MD5_CTX *context1, MD5_CTX *context2) {
   bool equal = true;
-  for (size_t i = 0; i < 16; i++){
-    printf("%02x", digest1[i]);
-    if (digest1[i] != digest2[i]) {
+  for (size_t i = 0; i < 4; i++){
+    if (context1->state[i] != context2->state[i]) {
       return false;
     }
   }
