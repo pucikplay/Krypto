@@ -65,10 +65,10 @@ int main(void) {
     memcpy(&(M[b*8]), &a, 8);
   }
 
-  MD5_CTX H_0 = getCorrect();
-  MD5_CTX H_1;
-  m0Init(&H_1);
-  updateAndAlter(&H_1, M);
+  MD5_CTX H_0, H_1;
+  m0Init(&H_0);
+  m1Init(&H_1);
+  checkCollision(&H_0, &H_1, (unsigned char*)M);
 
   while(!equalHash(&H_0,&H_1)) {
     i++;
@@ -77,13 +77,24 @@ int main(void) {
       a = ranval(&x);
       memcpy(&(M[b*8]), &a, 8);
     }
-    updateAndAlter(&H_1,(char*)M);
+    m0Init(&H_0);
+    m0Init(&H_1);
+    checkCollision(&H_0, &H_1, (char*)M);
   }
 
   for (size_t b = 0; b < 64; b++) {
-      printf("%02x", M[b]);
-    }
-    printf("\n");
+    printf("%02x", M[b]);
+  }
+  printf("\n");
+
+  M[4*4+3] += 0x80;
+  M[11*4+1] -= 0x80;
+  M[14*4+3] += 0x80;
+
+  for (size_t b = 0; b < 64; b++) {
+    printf("%02x", M[b]);
+  }
+  printf("\n");
 
   for (size_t i = 0; i < 4; i++) {
     printf("%02x", H_0.state[i]);

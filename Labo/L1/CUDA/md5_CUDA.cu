@@ -1,10 +1,14 @@
-#include "md5crack.h"
+#include "md5_CUDA.cuh"
 
-static void Decode(UINT4 *, unsigned char *, unsigned int);
-void alterTransform(UINT4 [4], unsigned char [64]);
-void transform(UINT4 [4], unsigned char [64]);
+__device__ static void Decode(UINT4 *output, unsigned char *input, unsigned int len) {
+  unsigned int i, j;
 
-void m0Init(MD5_CTX *context) {
+  for (i = 0, j = 0; j < len; i++, j += 4)
+    output[i] = ((UINT4)input[j]) | (((UINT4)input[j+1]) << 8) |
+    (((UINT4)input[j+2]) << 16) | (((UINT4)input[j+3]) << 24);
+}
+
+__device__ void m0Init(MD5_CTX *context) {
   context->count[0] = context->count[1] = 0;
   context->state[0] = 0x52589324;
   context->state[1] = 0x3093d7ca;
@@ -12,7 +16,7 @@ void m0Init(MD5_CTX *context) {
   context->state[3] = 0x20c5be06;
 }
 
-void m1Init(MD5_CTX *context) {
+__device__ void m1Init(MD5_CTX *context) {
   context->count[0] = context->count[1] = 0;
   context->state[0] = 0xd2589324;
   context->state[1] = 0xb293d7ca;
@@ -20,23 +24,14 @@ void m1Init(MD5_CTX *context) {
   context->state[3] = 0xa2c5be06;
 }
 
-void h0Init(MD5_CTX *context) {
+__device__ void h0Init(MD5_CTX *context) {
   context->state[0] = 0x9603161f;
   context->state[1] = 0xa30f9dbf;
   context->state[2] = 0x9f65ffbc;
   context->state[3] = 0xf41fc7ef;
 }
 
-void checkCollision(MD5_CTX *context1, MD5_CTX *context2, unsigned char *input) {
-//   memcpy((POINTER)&context1->buffer[0], (POINTER)input, 64);
-  alterTransform(context1->state, input);
-  input[4*4+3] += 0x80;
-  input[11*4+1] -= 0x80;
-  input[14*4+3] += 0x80;
-  transform(context2->state, input);
-}
-
-void alterTransform(UINT4 state[4], unsigned char block[64]) {
+__device__ void alterTransform(UINT4 state[4], unsigned char block[64]) {
   UINT4 a = state[0], b = state[1], c = state[2], d = state[3], x[16];
   UINT4 ap = state[0], bp = state[1], cp = state[2], dp = state[3];
 
@@ -202,7 +197,7 @@ void alterTransform(UINT4 state[4], unsigned char block[64]) {
   state[3] += d;
 }
 
-void transform(UINT4 state[4], unsigned char block[64]) {
+__device__ void transform(UINT4 state[4], unsigned char block[64]) {
   UINT4 a = state[0], b = state[1], c = state[2], d = state[3], x[16];
   
   Decode(x, block, 64);
@@ -285,12 +280,11 @@ void transform(UINT4 state[4], unsigned char block[64]) {
   state[3] += d;
 }
 
-/* Decodes input (unsigned char) into output (UINT4). Assumes len is a multiple of 4. 
-*/
-static void Decode(UINT4 *output, unsigned char *input, unsigned int len) {
-  unsigned int i, j;
-
-  for (i = 0, j = 0; j < len; i++, j += 4)
-    output[i] = ((UINT4)input[j]) | (((UINT4)input[j+1]) << 8) |
-    (((UINT4)input[j+2]) << 16) | (((UINT4)input[j+3]) << 24);
+__device__ void checkCollision(MD5_CTX *context1, MD5_CTX *context2, unsigned char *input) {
+//   memcpy((POINTER)&context1->buffer[0], (POINTER)input, 64);
+  alterTransform(context1->state, input);
+  input[4*4+3] += 0x80;
+  input[11*4+1] -= 0x80;
+  input[14*4+3] += 0x80;
+  transform(context2->state, input);
 }

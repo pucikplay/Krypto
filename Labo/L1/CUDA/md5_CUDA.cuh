@@ -141,8 +141,4 @@ typedef struct {
   unsigned char buffer[64];                         /* input buffer */
 } MD5_CTX;
 
-void checkCollision(MD5_CTX *, MD5_CTX *, unsigned char *);
-void m0Init(MD5_CTX *);
-void m1Init(MD5_CTX *);
-
 #endif //_MD5CRACK_H_

@@ -1,10 +1,15 @@
-#include "md5crack.h"
+#include <cuda_runtime.h>
+#include "md5_CUDA.cuh"
 
-static void Decode(UINT4 *, unsigned char *, unsigned int);
-void alterTransform(UINT4 [4], unsigned char [64]);
-void transform(UINT4 [4], unsigned char [64]);
+__device__ static void Decode(UINT4 *output, unsigned char *input, unsigned int len) {
+  unsigned int i, j;
 
-void m0Init(MD5_CTX *context) {
+  for (i = 0, j = 0; j < len; i++, j += 4)
+    output[i] = ((UINT4)input[j]) | (((UINT4)input[j+1]) << 8) |
+    (((UINT4)input[j+2]) << 16) | (((UINT4)input[j+3]) << 24);
+}
+
+__device__ void m0Init(MD5_CTX *context) {
   context->count[0] = context->count[1] = 0;
   context->state[0] = 0x52589324;
   context->state[1] = 0x3093d7ca;
@@ -12,7 +17,7 @@ void m0Init(MD5_CTX *context) {
   context->state[3] = 0x20c5be06;
 }
 
-void m1Init(MD5_CTX *context) {
+__device__ void m1Init(MD5_CTX *context) {
   context->count[0] = context->count[1] = 0;
   context->state[0] = 0xd2589324;
   context->state[1] = 0xb293d7ca;
@@ -20,23 +25,14 @@ void m1Init(MD5_CTX *context) {
   context->state[3] = 0xa2c5be06;
 }
 
-void h0Init(MD5_CTX *context) {
+__device__ void h0Init(MD5_CTX *context) {
   context->state[0] = 0x9603161f;
   context->state[1] = 0xa30f9dbf;
   context->state[2] = 0x9f65ffbc;
   context->state[3] = 0xf41fc7ef;
 }
 
-void checkCollision(MD5_CTX *context1, MD5_CTX *context2, unsigned char *input) {
-//   memcpy((POINTER)&context1->buffer[0], (POINTER)input, 64);
-  alterTransform(context1->state, input);
-  input[4*4+3] += 0x80;
-  input[11*4+1] -= 0x80;
-  input[14*4+3] += 0x80;
-  transform(context2->state, input);
-}
-
-void alterTransform(UINT4 state[4], unsigned char block[64]) {
+__device__ void alterTransform(UINT4 state[4], unsigned char block[64]) {
   UINT4 a = state[0], b = state[1], c = state[2], d = state[3], x[16];
   UINT4 ap = state[0], bp = state[1], cp = state[2], dp = state[3];
 
@@ -202,7 +198,7 @@ void alterTransform(UINT4 state[4], unsigned char block[64]) {
   state[3] += d;
 }
 
-void transform(UINT4 state[4], unsigned char block[64]) {
+__device__ void transform(UINT4 state[4], unsigned char block[64]) {
   UINT4 a = state[0], b = state[1], c = state[2], d = state[3], x[16];
   
   Decode(x, block, 64);
@@ -285,12 +281,137 @@ void transform(UINT4 state[4], unsigned char block[64]) {
   state[3] += d;
 }
 
-/* Decodes input (unsigned char) into output (UINT4). Assumes len is a multiple of 4. 
-*/
-static void Decode(UINT4 *output, unsigned char *input, unsigned int len) {
-  unsigned int i, j;
+__device__ void checkCollision(MD5_CTX *context1, MD5_CTX *context2, unsigned char *input) {
+//   memcpy((POINTER)&context1->buffer[0], (POINTER)input, 64);
+  alterTransform(context1->state, input);
+  input[4*4+3] += 0x80;
+  input[11*4+1] -= 0x80;
+  input[14*4+3] += 0x80;
+  transform(context2->state, input);
+}
 
-  for (i = 0, j = 0; j < len; i++, j += 4)
-    output[i] = ((UINT4)input[j]) | (((UINT4)input[j+1]) << 8) |
-    (((UINT4)input[j+2]) << 16) | (((UINT4)input[j+3]) << 24);
+
+__device__ bool equalHash(MD5_CTX *context1, MD5_CTX *context2) {
+  for (size_t i = 0; i < 4; i++){
+    if (context1->state[i] != context2->state[i]) {
+      return false;
+    }
+  }
+  return true;
+}
+
+//jsf64 random:
+typedef struct ranctx { UINT8 a; UINT8 b; UINT8 c; UINT8 d; } ranctx;
+#define rot64(x,k) (((x)<<(k))|((x)>>(64-(k))))
+__device__ UINT8 ranval(ranctx *x) {
+  UINT8 e = x->a - rot64(x->b, 7);
+  x->a = x->b ^ rot64(x->c, 13);
+  x->b = x->c + rot64(x->d, 37);
+  x->c = x->d + e;
+  x->d = e + x->a;
+  return x->d;
+}
+
+__device__ void raninit(ranctx *x, UINT8 seed) {
+  UINT8 i;
+  x->a = 0xf1ea5eed, x->b = x->c = x->d = seed;
+  for (i = 0; i < 20; ++i) {
+    (void)ranval(x);
+  }
+}
+
+__global__ void cracking(unsigned char *M) {
+  size_t i = 0;
+  ranctx x;
+  UINT8 a;
+  const uint32_t index = blockIdx.x * blockDim.x + threadIdx.x;
+
+  printf("[%d, %d]:\t\tValue is:%d\n", blockIdx.y * gridDim.x + blockIdx.x,
+         threadIdx.z * blockDim.x * blockDim.y + threadIdx.y * blockDim.x +
+             threadIdx.x,
+         index);
+
+  raninit(&x, index);
+
+  for (size_t b = 0; b < 8; b++) {
+    a = ranval(&x);
+    memcpy(&(M[b*8]), &a, 8);
+  }
+
+  MD5_CTX H_0, H_1;
+  m0Init(&H_0);
+  m1Init(&H_1);
+  checkCollision(&H_0, &H_1, M);
+
+  while(!equalHash(&H_0,&H_1)) {
+    i++;
+    if (i % 10000000 == 0) printf("id: %d: %ld\n",index,i);
+    for (size_t b = 0; b < 8; b++) {
+      a = ranval(&x);
+      memcpy(&(M[b*8]), &a, 8);
+    }
+    m0Init(&H_0);
+    m0Init(&H_1);
+    checkCollision(&H_0, &H_1, M);
+  }
+
+  for (size_t b = 0; b < 64; b++) {
+    printf("%02x", M[b]);
+  }
+  printf("\n");
+
+  M[4*4+3] += 0x80;
+  M[11*4+1] -= 0x80;
+  M[14*4+3] += 0x80;
+
+  for (size_t b = 0; b < 64; b++) {
+    printf("%02x", M[b]);
+  }
+  printf("\n");
+}
+
+__global__ void testKernel(int val) {
+  printf("[%d, %d]:\t\tValue is:%d\n", blockIdx.y * gridDim.x + blockIdx.x,
+         threadIdx.z * blockDim.x * blockDim.y + threadIdx.y * blockDim.x +
+             threadIdx.x,
+         val);
+}
+
+int main(void) {
+  // UINT4 M_0_0[16] = {0x2dd31d1, 0xc4eee6c5, 0x69a3d69, 0x5cf9af98, 
+  //                 0x87b5ca2f, 0xab7e4612, 0x3e580440, 0x897ffbb8, 
+  //                 0x634ad55, 0x2b3f409, 0x8388e483, 0x5a417125, 
+  //                 0xe8255108, 0x9fc9cdf7, 0xf2bd1dd9, 0x5b3c3780};
+
+  // UINT4 M_1_0[16] = {0xd11d0b96, 0x9c7b41dc, 0xf497d8e4, 0xd555655a,
+  //                 0xc79a7335, 0xcfdebf0, 0x66f12930, 0x8fb109d1,
+  //                 0x797f2775, 0xeb5cd530, 0xbaade822, 0x5c15cc79,
+  //                 0xddcb74ed, 0x6dd3c55f, 0xd80a9bb1, 0xe3a7cc35};
+
+  // UINT4 M_0_1[16] = {0x2dd31d1, 0xc4eee6c5, 0x69a3d69, 0x5cf9af98,
+  //                   0x7b5ca2f, 0xab7e4612, 0x3e580440, 0x897ffbb8,
+  //                   0x634ad55, 0x2b3f409, 0x8388e483, 0x5a41f125,
+  //                   0xe8255108, 0x9fc9cdf7, 0x72bd1dd9, 0x5b3c3780};
+
+  // UINT4 M_1_1[16] = {0xd11d0b96, 0x9c7b41dc, 0xf497d8e4, 0xd555655a,
+  //                   0x479a7335, 0xcfdebf0, 0x66f12930, 0x8fb109d1,
+  //                   0x797f2775, 0xeb5cd530, 0xbaade822, 0x5c154c79,
+  //                   0xddcb74ed, 0x6dd3c55f, 0x580a9bb1, 0xe3a7cc35};
+
+  unsigned char* h_M = (unsigned char*)malloc(64);
+  unsigned char* d_M;
+  cudaMalloc(&d_M, 64);
+
+  testKernel<<<1,1>>>(d_M);
+
+  // printf("printf() is called. Output:\n\n");
+
+  // Kernel configuration, where a two-dimensional grid and
+  // three-dimensional blocks are configured.
+  // dim3 dimGrid(2, 2);
+  // dim3 dimBlock(2, 2, 2);
+  // testKernel<<<dimGrid, dimBlock>>>(10);
+  cudaMemcpy(h_M, d_M, 64, cudaMemcpyDeviceToHost);
+  
+  return 0;
 }
