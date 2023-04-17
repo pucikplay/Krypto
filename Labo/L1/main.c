@@ -78,7 +78,7 @@ int main(void) {
       memcpy(&(M[b*8]), &a, 8);
     }
     m0Init(&H_0);
-    m0Init(&H_1);
+    m1Init(&H_1);
     checkCollision(&H_0, &H_1, (char*)M);
   }
 
