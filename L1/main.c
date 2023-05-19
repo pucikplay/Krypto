@@ -24,14 +24,14 @@ void raninit(ranctx *x, UINT8 seed) {
 
 int main(void) {
   UINT4 M_0_0[16] = {0x2dd31d1, 0xc4eee6c5, 0x69a3d69, 0x5cf9af98, 
-                  0x87b5ca2f, 0xab7e4612, 0x3e580440, 0x897ffbb8, 
-                  0x634ad55, 0x2b3f409, 0x8388e483, 0x5a417125, 
-                  0xe8255108, 0x9fc9cdf7, 0xf2bd1dd9, 0x5b3c3780};
+                    0x87b5ca2f, 0xab7e4612, 0x3e580440, 0x897ffbb8, 
+                    0x634ad55, 0x2b3f409, 0x8388e483, 0x5a417125, 
+                    0xe8255108, 0x9fc9cdf7, 0xf2bd1dd9, 0x5b3c3780};
 
   UINT4 M_1_0[16] = {0xd11d0b96, 0x9c7b41dc, 0xf497d8e4, 0xd555655a,
-                  0xc79a7335, 0xcfdebf0, 0x66f12930, 0x8fb109d1,
-                  0x797f2775, 0xeb5cd530, 0xbaade822, 0x5c15cc79,
-                  0xddcb74ed, 0x6dd3c55f, 0xd80a9bb1, 0xe3a7cc35};
+                    0xc79a7335, 0xcfdebf0, 0x66f12930, 0x8fb109d1,
+                    0x797f2775, 0xeb5cd530, 0xbaade822, 0x5c15cc79,
+                    0xddcb74ed, 0x6dd3c55f, 0xd80a9bb1, 0xe3a7cc35};
 
   UINT4 M_0_1[16] = {0x2dd31d1, 0xc4eee6c5, 0x69a3d69, 0x5cf9af98,
                     0x7b5ca2f, 0xab7e4612, 0x3e580440, 0x897ffbb8,
@@ -42,6 +42,11 @@ int main(void) {
                     0x479a7335, 0xcfdebf0, 0x66f12930, 0x8fb109d1,
                     0x797f2775, 0xeb5cd530, 0xbaade822, 0x5c154c79,
                     0xddcb74ed, 0x6dd3c55f, 0x580a9bb1, 0xe3a7cc35};
+
+  UINT4 M_0_2[16] = {0x2dd31d1, 0xc4eee6c5, 0x69a3d69, 0x5cf9af98,
+                    0x87b5ca2f, 0xab7e4612, 0x3e580440, 0x897ffbb8,
+                    0x634ad55, 0x2b3f409, 0x8388e483, 0x5a417125,
+                    0xe8255108, 0x9fc9cdf7, 0xf2bd1dd9, 0x5b3c3780};
   
   // POINTER M_0 = malloc(128);
   // POINTER M_1 = malloc(128);
@@ -66,6 +71,7 @@ int main(void) {
   }
 
   MD5_CTX H_0, H_1;
+
   m0Init(&H_0);
   m1Init(&H_1);
   checkCollision(&H_0, &H_1, (unsigned char*)M);
@@ -77,6 +83,15 @@ int main(void) {
       a = ranval(&x);
       memcpy(&(M[b*8]), &a, 8);
     }
+    if (i == 100000) {
+      for (size_t b = 0; b < 16; b++) {
+        memcpy(&(M[b*4]), &M_1_0[b], 4);
+      }
+      for (size_t b = 0; b < 64; b++) {
+        printf("%02x", M[b]);
+      }
+      printf("\n");
+    }
     m0Init(&H_0);
     m1Init(&H_1);
     checkCollision(&H_0, &H_1, (char*)M);
@@ -87,9 +102,9 @@ int main(void) {
   }
   printf("\n");
 
-  M[4*4+3] += 0x80;
-  M[11*4+1] -= 0x80;
-  M[14*4+3] += 0x80;
+  M[4*4+3] -= 0x80;
+  M[11*4+1] += 0x80;
+  M[14*4+3] -= 0x80;
 
   for (size_t b = 0; b < 64; b++) {
     printf("%02x", M[b]);

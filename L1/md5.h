@@ -27,8 +27,9 @@ void MD5Transform(UINT4 [4], unsigned char [64]);
 void transformCheck(UINT4 [4], unsigned char [64]);
 void MD5Init(MD5_CTX *);
 void MD5Update(MD5_CTX *, unsigned char *, unsigned int);
+void MD5UpdateOnce(MD5_CTX *, unsigned char *);
 void MD5Final(unsigned char [16], MD5_CTX *, bool);
-POINTER MD5String(char *string, bool);
-MD5_CTX digestTwoBlocks(char *string1, char *string2);
+POINTER MD5String(char *, bool);
+MD5_CTX digestTwoBlocks(char *, char *);
 
 #endif //_MD5_H_

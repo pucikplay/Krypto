@@ -132,6 +132,7 @@ typedef uint16_t UINT2;
 /* UINT4 defines a four byte word */
 typedef uint32_t UINT4;
 
+/* UINT8 defines a eight byte word */
 typedef uint64_t UINT8;
 
 /* MD5 context. */
